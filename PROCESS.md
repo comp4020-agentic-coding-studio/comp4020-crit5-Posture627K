@@ -1,70 +1,58 @@
 # Process overview
 
-<!-- TEMPLATE: this file is a shape to fill in, not a form. Replace everything
-     in it with your own overview, and delete this comment — `pnpm
-     check:evidence` will remind you if it's still here. -->
-
-A reading-guide to how the work came together --- a map to your process, not an
-essay about it. Markers read this file and follow its citations; they don't
-trawl the repo for evidence you didn't point at, so if a moment mattered, cite
-it.
-
-This file is the shape; the course site's
-[assessment page](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#what-you-submit)
-is the requirement, and its
-[word counts](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#word-counts)
-cover every deliverable.
-
 ## What I built
 
-One paragraph: the thing, and the idea behind it.
+Six Pockets is a tiny browser pool game: drag back from the cue ball to aim
+and set power, release to take the shot, and sink three target balls before a
+limited number of shots runs out. It's a static HTML/CSS/TypeScript site (no
+framework) built on two pure, DOM-free modules --- a physics core (motion,
+friction, rail and ball collisions, pocket capture) and a game-state rule
+(shot count, win/loss) --- each with its own focused Vitest suite, then wired
+to pointer input and rendering in `main.ts`.
 
 ## The moments that mattered
 
-Three or four for an assignment; fewer is fine for a weekly prototype. Keep the
-list short so each moment has room to do all four jobs:
+1. **Pure core before any interaction existed.** Rather than writing aiming,
+   rendering and physics tangled together in `main.ts` from the start, I built
+   the physics and game-state rules as plain functions with no DOM dependency
+   at all, each with its own test file, and only wired them into `main.ts`
+   afterwards. That meant collision, rail and pocket-capture math could be
+   checked directly in Vitest, with nothing running in a browser yet.
+   [`ce61d305...e7e0d9f`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-Posture627K/compare/ce61d305...e7e0d9f)
 
-1. **what happened** --- the problem, or the thing that went wrong
-2. **what you did instead of the obvious thing** --- the call you made, and why
-   it beat the obvious one
-3. **how you knew it was right** --- the check you ran, the viewport you looked
-   at, what you read before accepting the diff
-4. **the citation** --- a commit or commit range, a `CLAUDE.md` change, a check
-   that went from red to green, a prompt paired with the commit it produced
+2. **Green friction tests, wrong-feeling game.** Once the whole game was wired
+   up and playable, I actually dragged the cue ball and watched shots roll ---
+   and they visibly looked stopped well before the simulation agreed a ball
+   was at rest; the old proportional-decay model only approached zero speed
+   asymptotically, so it kept a long, barely-visible "still technically
+   moving" tail. The existing tests were passing and correctly establishing
+   properties like frame-rate-independent decay and bounded settling time ---
+   they just weren't testing for the thing that mattered here: whether the
+   tail was short enough to look stopped to a person watching it. Instead of
+   loosening a threshold to hide the symptom, I replaced the model with a
+   constant deceleration, so a ball's speed reaches exactly zero in finite
+   time (`v0 / FRICTION_DECELERATION` seconds), and added tests asserting
+   exactly that for representative shot speeds. I only trusted it once I'd
+   re-played the actual table and the stops looked instant rather than
+   trailing off.
+   [`22b190d...af06836`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-Posture627K/compare/22b190d...af06836)
 
-Jobs 2 and 3 are the ones the repo can't tell a reader on its own, so they're
-where the marks are. The strongest moments are the ones where a correction
-landed in the **harness** --- the standards and checks your work has to satisfy
---- rather than in a retry: a rule added to `CLAUDE.md`, a check wired up, an
-attempt thrown away. Retrying until it passes is the routine case, and changing
-what the work runs against is the skilled one.
-
-Cite each moment as a link whose text is the commit hash or range and whose
-target is this repo's commit or compare URL, so a reader clicks straight to the
-evidence:
-
-- one commit: [`a1b2c3d`](https://github.com/YOUR-ORG/YOUR-REPO/commit/a1b2c3d)
-- a range:
-  [`a1b2c3d...e4f5a6b`](https://github.com/YOUR-ORG/YOUR-REPO/compare/a1b2c3d...e4f5a6b)
-
-To pair a prompt with the commit it produced, quote the prompt (curated, not a
-full transcript) next to the citation:
-
-> the prompt, verbatim
-
-Screenshots are welcome where one carries the verification better than a
-sentence does. Commit the file to this repo and link it with a **relative**
-path, which is what makes it render on GitHub: `![alt text](docs/before.png)`.
-Images don't count towards the word count and don't replace the citation.
-
-## Before you ship
-
-`pnpm check:evidence` verifies your citations resolve to real commits, that a
-reflection entry the marker reads is in `reflections/`, and that your
-`CLAUDE.md` is there --- before a marker ever opens the file. It checks that
-your map is traceable, not that it is good: the marker judges whether your
-small, deliberately chosen set of moments shows real judgement and reflection. A
-green check is not a substitute for that curation.
-
-Images aren't checked: unlike a citation whose SHA doesn't resolve, a broken
-image is visible the moment this file is rendered on GitHub.
+3. **Playing the finished artefact turned up problems no unit test could
+   have.** Manually running the game surfaced three separate rough edges: play
+   got awkward once the cue ball was pocketed, a pocketed target ball became
+   inactive but stayed visibly frozen near the pocket with no feedback that it
+   was gone (inactive target balls were simply skipped during render, so they
+   never moved or disappeared), and it wasn't obvious the cue ball was the
+   first thing to interact with. I added Reset Cue Ball / Reset Board with a
+   deterministic safe-respot search (unit-tested directly, since the
+   legality/search logic is a pure function --- including the case where no
+   legal spot exists), a short scale/fade pocket animation so a sunk ball
+   visibly leaves the table, and a purely decorative arrow plus a temporary
+   emphasis ring pointing at the cue ball, deliberately with no instructional
+   text, per the course's no-tutorial constraint. I judged the animation
+   timing and the arrow's visibility by eye, in the browser, at both
+   viewports --- that part isn't something a test can decide for me. All of it
+   landed in one commit: `main.ts` was a four-line stub right up until this
+   commit, so there's no earlier integration milestone to split it against ---
+   one honest commit, not an invented sequence of smaller ones.
+   [`af06836`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit5-Posture627K/commit/af06836)
