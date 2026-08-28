@@ -65,9 +65,11 @@ export const RAIL_MAX_Y = TABLE_HEIGHT - BALL_RADIUS;
 // Fraction of speed retained per second of elapsed dt (NOT per call) ---
 // applied as FRICTION_PER_SECOND ** dt so decay is frame-rate independent:
 // the same elapsed time produces the same slowdown however many steps it's
-// divided into. Value unchanged from the earlier per-call FRICTION --- only
-// its name and units are now explicit; not re-tuned.
-export const FRICTION_PER_SECOND = 0.98;
+// divided into. Chosen so the exponential decay time constant (the time for
+// speed to fall to 1/e of its value, tau = -1 / ln(FRICTION_PER_SECOND)) is
+// about 1.5 seconds --- a baseline that makes shots settle in a practical,
+// playable duration. This is only a starting value, not final gameplay feel.
+export const FRICTION_PER_SECOND = Math.exp(-1 / 1.5);
 
 // Speed (table-widths per second) at or below which a ball counts as at rest
 // rather than asymptotically coasting.

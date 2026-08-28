@@ -3,6 +3,7 @@ import {
   allAtRest,
   applyFriction,
   BALL_RADIUS,
+  FRICTION_PER_SECOND,
   isAtRest,
   isPocketed,
   integratePosition,
@@ -49,6 +50,29 @@ describe("applyFriction", () => {
 
     expect(manySteps.vx).toBeCloseTo(oneStep.vx);
     expect(manySteps.vy).toBeCloseTo(oneStep.vy);
+  });
+
+  it("has a decay time constant of about 1.5 seconds", () => {
+    const timeConstant = -1 / Math.log(FRICTION_PER_SECOND);
+    expect(timeConstant).toBeCloseTo(1.5);
+  });
+
+  it("brings a representative moving shot to rest within a practical, bounded simulated duration", () => {
+    // Fixed simulated step and a hard iteration cap --- deterministic, no
+    // dependency on real wall-clock time.
+    const dt = 1 / 60;
+    const maxSimulatedSeconds = 10;
+    const maxSteps = Math.ceil(maxSimulatedSeconds / dt);
+
+    let ball: Ball = { x: 0, y: 0, vx: 0.6, vy: 0 };
+    let steps = 0;
+    while (!isAtRest(ball) && steps < maxSteps) {
+      ball = applyFriction(ball, dt);
+      steps++;
+    }
+
+    expect(isAtRest(ball)).toBe(true);
+    expect(steps * dt).toBeLessThan(maxSimulatedSeconds);
   });
 });
 
