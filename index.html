@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>COMP4020 prototype</title>
+    <title>Six Pockets</title>
     <meta
       name="description"
-      content="Replace this with one sentence saying what this page is. A search result and a link preview both show it."
+      content="Six Pockets: a tiny browser pool game --- sink the three balls before you run out of shots."
     />
 
     <!--
@@ -27,11 +27,24 @@
       </nav>
     </header>
     <main>
-      <h1>COMP4020 prototype</h1>
-      <p>
-        Replace this with your prototype. This week's brief is on the course website;
-        <code>spec/README.md</code> explains how the checks in this repo relate to it.
-      </p>
+      <h1>Six Pockets</h1>
+      <div class="game">
+        <div class="table" aria-hidden="true">
+          <div class="pocket pocket--top-left"></div>
+          <div class="pocket pocket--top-mid"></div>
+          <div class="pocket pocket--top-right"></div>
+          <div class="pocket pocket--bottom-left"></div>
+          <div class="pocket pocket--bottom-mid"></div>
+          <div class="pocket pocket--bottom-right"></div>
+          <div class="ball ball--target ball--target-1"></div>
+          <div class="ball ball--target ball--target-2"></div>
+          <div class="ball ball--target ball--target-3"></div>
+          <div class="ball ball--cue"></div>
+        </div>
+        <div class="hud">
+          <span class="hud-status">Shots left: 10</span>
+        </div>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>
