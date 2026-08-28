@@ -3,7 +3,7 @@ import {
   allAtRest,
   applyFriction,
   BALL_RADIUS,
-  FRICTION_PER_SECOND,
+  FRICTION_DECELERATION,
   isAtRest,
   isPocketed,
   integratePosition,
@@ -33,14 +33,15 @@ describe("integratePosition", () => {
 describe("applyFriction", () => {
   it("reduces speed", () => {
     const ball: Ball = { x: 0, y: 0, vx: 0.1, vy: 0 };
-    const after = applyFriction(ball, 1);
+    const after = applyFriction(ball, 0.1);
     const speedBefore = Math.hypot(ball.vx, ball.vy);
     const speedAfter = Math.hypot(after.vx, after.vy);
     expect(speedAfter).toBeLessThan(speedBefore);
+    expect(speedAfter).toBeGreaterThan(0);
   });
 
   it("produces the same decay for one long step as many short steps covering the same elapsed time", () => {
-    const ball: Ball = { x: 0, y: 0, vx: 0.1, vy: 0 };
+    const ball: Ball = { x: 0, y: 0, vx: 0.5, vy: 0 };
     const oneStep = applyFriction(ball, 1);
 
     let manySteps = ball;
@@ -52,27 +53,32 @@ describe("applyFriction", () => {
     expect(manySteps.vy).toBeCloseTo(oneStep.vy);
   });
 
-  it("has a decay time constant of about 1.5 seconds", () => {
-    const timeConstant = -1 / Math.log(FRICTION_PER_SECOND);
-    expect(timeConstant).toBeCloseTo(1.5);
+  it("clamps to exactly zero once the deceleration would carry speed past it, rather than reversing or coasting", () => {
+    const ball: Ball = { x: 0, y: 0, vx: 0.1, vy: 0 };
+    // FRICTION_DECELERATION * dt (0.2 * 1 = 0.2) exceeds the ball's speed (0.1).
+    const after = applyFriction(ball, 1);
+    expect(after.vx).toBe(0);
+    expect(after.vy).toBe(0);
   });
 
-  it("brings a representative moving shot to rest within a practical, bounded simulated duration", () => {
-    // Fixed simulated step and a hard iteration cap --- deterministic, no
-    // dependency on real wall-clock time.
+  it("reaches exactly zero after v0 / FRICTION_DECELERATION seconds, for a representative low/medium/max shot", () => {
+    // Fixed simulated step, deterministic --- no dependency on real
+    // wall-clock time.
     const dt = 1 / 60;
-    const maxSimulatedSeconds = 10;
-    const maxSteps = Math.ceil(maxSimulatedSeconds / dt);
 
-    let ball: Ball = { x: 0, y: 0, vx: 0.6, vy: 0 };
-    let steps = 0;
-    while (!isAtRest(ball) && steps < maxSteps) {
-      ball = applyFriction(ball, dt);
-      steps++;
+    for (const v0 of [0.04, 0.3, 0.6]) {
+      const expectedStopTime = v0 / FRICTION_DECELERATION;
+      let ball: Ball = { x: 0, y: 0, vx: v0, vy: 0 };
+      let steps = 0;
+      const maxSteps = Math.ceil((expectedStopTime + 1) / dt);
+      while (!isAtRest(ball) && steps < maxSteps) {
+        ball = applyFriction(ball, dt);
+        steps++;
+      }
+      expect(isAtRest(ball)).toBe(true);
+      // Quantized by the fixed step size, so allow at most one dt of slack.
+      expect(steps * dt).toBeLessThan(expectedStopTime + dt * 2);
     }
-
-    expect(isAtRest(ball)).toBe(true);
-    expect(steps * dt).toBeLessThan(maxSimulatedSeconds);
   });
 });
 

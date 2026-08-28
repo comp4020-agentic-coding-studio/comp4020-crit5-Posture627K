@@ -10,7 +10,7 @@
 // Time contract: every `dt` in this module is elapsed time in SECONDS.
 // Velocity (vx, vy) is therefore in table-widths per second. Passing the
 // real elapsed time between frames (however that's measured) keeps the
-// simulation frame-rate independent --- see FRICTION_PER_SECOND below.
+// simulation frame-rate independent --- see FRICTION_DECELERATION below.
 
 export interface Ball {
   readonly x: number;
@@ -62,14 +62,21 @@ export const RAIL_MAX_X = TABLE_WIDTH - BALL_RADIUS;
 export const RAIL_MIN_Y = BALL_RADIUS;
 export const RAIL_MAX_Y = TABLE_HEIGHT - BALL_RADIUS;
 
-// Fraction of speed retained per second of elapsed dt (NOT per call) ---
-// applied as FRICTION_PER_SECOND ** dt so decay is frame-rate independent:
-// the same elapsed time produces the same slowdown however many steps it's
-// divided into. Chosen so the exponential decay time constant (the time for
-// speed to fall to 1/e of its value, tau = -1 / ln(FRICTION_PER_SECOND)) is
-// about 1.5 seconds --- a baseline that makes shots settle in a practical,
-// playable duration. This is only a starting value, not final gameplay feel.
-export const FRICTION_PER_SECOND = Math.exp(-1 / 1.5);
+// Constant deceleration (table-widths per second^2) applied opposite the
+// ball's direction of travel, modelling rolling friction the way a real
+// table does: speed decreases at a fixed rate and reaches EXACTLY zero in
+// finite time (v0 / FRICTION_DECELERATION seconds), rather than asymptotically
+// approaching it. This deliberately replaces an earlier proportional
+// (exponential) decay model, whose speed never truly reached zero --- only
+// approached it in a long, decreasingly-visible tail that kept isAtRest()
+// reporting "still moving" long after a ball looked stopped on screen.
+// Frame-rate independent: a fixed deceleration integrates the same total
+// speed loss over an elapsed dt regardless of how that dt is subdivided
+// (0.2 units/sec of speed lost per second, however many steps it's split into).
+// Chosen so a maximum-power shot (0.6, see aim.ts's MAX_SHOT_SPEED) travels
+// close to the full table width before stopping in exactly 3 seconds --- a
+// baseline for playability, not final gameplay feel.
+export const FRICTION_DECELERATION = 0.2;
 
 // Speed (table-widths per second) at or below which a ball counts as at rest
 // rather than asymptotically coasting.
@@ -88,15 +95,22 @@ export function integratePosition(ball: Ball, dt: number): Ball {
   return { ...ball, x: ball.x + ball.vx * dt, y: ball.y + ball.vy * dt };
 }
 
-// dt: elapsed time in seconds.
+// dt: elapsed time in seconds. Reduces speed by FRICTION_DECELERATION * dt,
+// preserving direction, and clamps to exactly zero rather than reversing
+// past it or coasting on asymptotically.
 export function applyFriction(ball: Ball, dt: number): Ball {
-  const factor = FRICTION_PER_SECOND ** dt;
-  const vx = ball.vx * factor;
-  const vy = ball.vy * factor;
-  if (Math.hypot(vx, vy) < REST_SPEED_THRESHOLD) {
+  const speed = Math.hypot(ball.vx, ball.vy);
+  if (speed === 0) {
+    return ball;
+  }
+
+  const newSpeed = Math.max(0, speed - FRICTION_DECELERATION * dt);
+  if (newSpeed === 0 || newSpeed < REST_SPEED_THRESHOLD) {
     return { ...ball, vx: 0, vy: 0 };
   }
-  return { ...ball, vx, vy };
+
+  const scale = newSpeed / speed;
+  return { ...ball, vx: ball.vx * scale, vy: ball.vy * scale };
 }
 
 // One physics step: move by the current velocity, then let friction act on
